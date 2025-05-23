@@ -1,15 +1,19 @@
 from core import Controller
 
+VOCAB_FILE = "data/vocab1.txt"
+BIOPAC_IP = "127.0.0.1"
+VOCAB_PER_ROUND = 20
+TEST_COUNT = 5
+
 controller = Controller(
-	vocab_file='data/vocab.txt',
+	vocab_file=VOCAB_FILE,
 	model_path='models/eeg_state_classifier.pt',
-	biopac_ip='127.0.0.1', 
+	biopac_ip=BIOPAC_IP, 
 	cmd_port=65432, 
 	recv_port=65433
 )
 
-VOCAB_PER_ROUND = 2
-TEST_COUNT = 5
+
 for round_num in range(5):
     print(f"\n==== 📚 Round {round_num+1} remember phase ====")
     controller.run_memory_round(
@@ -27,3 +31,4 @@ for round_num in range(5):
     controller.save_results(f"results/memory_round{round_num+1}.json")
 
 controller.save_results("results/final_results.json")
+
