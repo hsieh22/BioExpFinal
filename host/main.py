@@ -8,19 +8,19 @@ print("Local IP:", local_ip)
 
 VOCAB_FILE = "data/vocab1.txt"
 BIOPAC_IP = "172.20.10.3"
-VOCAB_PER_ROUND = 20
-TEST_COUNT = 5
+ROUND = 1
+VOCAB_PER_ROUND = 10
+TEST_COUNT = 3
 
 controller = Controller(
 	vocab_file=VOCAB_FILE,
-	model_path='models/eeg_state_classifier.pt',
+	model_path='models/eeg_state_classifier.pth',
 	biopac_ip=BIOPAC_IP, 
 	cmd_port=65432, 
 	recv_port=65433
 )
 
-
-for round_num in range(5):
+for round_num in range(ROUND):
     print(f"\n==== 📚 Round {round_num+1} remember phase ====")
     controller.run_memory_round(
 			start_idx = round_num * VOCAB_PER_ROUND, 

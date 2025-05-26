@@ -19,7 +19,7 @@ class Controller:
 		self.vocab.shuffle_words()
 
 		# Init inference engine
-		self.infer = InferenceEngine("models/eeg_state_classifier.pt")
+		self.infer = InferenceEngine(model_path)
 	
 	def run_memory_round(self, start_idx, count):
 		for i in range(start_idx, start_idx + count):
@@ -77,7 +77,6 @@ class Controller:
 				print("✅ Correct!")
 			else:
 				print(f"❌ Wrong, answer :{word.english}")
-
 
 	def save_results(self, path):
 		result = []
