@@ -1,6 +1,7 @@
 import random
 import time
 import json
+import numpy as np
 from core.eeg_client import EEGClient
 from core.inference import InferenceEngine
 from core.vocabulary import VocabularyManager
@@ -25,20 +26,35 @@ class Controller:
 			if i >= self.vocab.size():
 				print("Exceeding vocabulary size, stopping the round.")
 				break
+
+			# Display the word in the console
 			word = self.vocab.get_word(i)
 			print(f"\n🧠 {word.english} ({word.chinese})")
 
+			# Send command to start EEG recording
 			self.client.send_command("START", word.id)
-			time.sleep(3)
+			time.sleep(10.5)	# Set the memory time per word here
 			print("\n" * 50)
-			self.client.send_command("STOP", word.id)
 
-			#TODO
-			eeg_data = self.client.receive_data()
-			print(eeg_data)
-			#TODO
-			probs = self.infer.predict_from_json(eeg_data)
+			# Send command to stop EEG recording and receive data
+			eeg_raw_data = self.client.send_and_receive("STOP", word.id)
+			if not eeg_raw_data:
+				print("❌ No EEG data received, skipping this word.")
+				continue
+			
+			# parse the received EEG data
+			lines = eeg_raw_data.strip().splitlines()[1:]
+			float_data = [float(line) for line in lines]
+			data = np.array(float_data)[-5000:]
+			print(len(data), "data points received")
+			if len(data) < 5000:
+				print("❌ Not enough data points, skipping this word.")
+				continue
+			
+			# Run inference on the EEG data
+			probs = self.infer.predict_from_json(data)
 
+			# Store the state probabilities in the word object
 			word.state_probs = probs
 			print(f"✅ Status probs: {probs}")
         

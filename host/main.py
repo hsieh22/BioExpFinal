@@ -1,7 +1,13 @@
 from core import Controller
+import socket
+
+# Get the local IP address
+hostname = socket.gethostname()
+local_ip = socket.gethostbyname(hostname)
+print("Local IP:", local_ip)
 
 VOCAB_FILE = "data/vocab1.txt"
-BIOPAC_IP = "127.0.0.1"
+BIOPAC_IP = "172.20.10.3"
 VOCAB_PER_ROUND = 20
 TEST_COUNT = 5
 

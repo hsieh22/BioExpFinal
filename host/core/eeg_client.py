@@ -30,16 +30,31 @@ class EEGClient:
             s.connect((self.biopac_ip, self.cmd_port))
             s.sendall(msg.encode())
 
-    def receive_data(self):
+    def send_and_receive(self, cmd: str, word_id: int):
+        msg = json.dumps({"cmd": cmd, "word_id": word_id})
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('0.0.0.0', self.recv_port))
-            s.listen(1)
-            conn, addr = s.accept()
-            with conn:
-                data = b''
-                while True:
-                    packet = conn.recv(4096)
-                    if not packet:
-                        break
-                    data += packet
-                return json.loads(data.decode())
+            s.connect((self.biopac_ip, self.cmd_port))
+            s.sendall(msg.encode())
+
+            data = b''
+            while True:
+                packet = s.recv(4096)
+                if not packet:
+                    break
+                data += packet
+            return json.loads(data.decode())
+    
+    # def receive_data(self):
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    #         print("🔄 Waiting for EEG data...")
+    #         s.bind(('0.0.0.0', self.recv_port))
+    #         s.listen(1)
+    #         conn, addr = s.accept()
+    #         with conn:
+    #             data = b''
+    #             while True:
+    #                 packet = conn.recv(4096)
+    #                 if not packet:
+    #                     break
+    #                 data += packet
+    #             return json.loads(data.decode())
