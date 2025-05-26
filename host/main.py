@@ -20,6 +20,7 @@ controller = Controller(
 	recv_port=65433
 )
 
+# Memory phase and test phase
 for round_num in range(ROUND):
     print(f"\n==== 📚 Round {round_num+1} remember phase ====")
     controller.run_memory_round(
@@ -38,3 +39,7 @@ for round_num in range(ROUND):
 
 controller.save_results("results/final_results.json")
 
+# Final examination
+print("\n==== 📝 Final examination ====")
+controller.examine(VOCAB_PER_ROUND * ROUND)
+controller.save_results("results/final_exam.json")

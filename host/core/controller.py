@@ -92,3 +92,29 @@ class Controller:
 			json.dump(result, f, ensure_ascii=False, indent=2)
 		print("💾 Save result in :", path)
 
+	def examine(self, vocab_num):
+		print("\n📝 Starting final examination...")
+		test_vocab = self.vocab.get_all()[:vocab_num]
+		random.shuffle(test_vocab)
+		for word, idx in test_vocab:
+			print(f"\n👉{idx} : {word.chinese}")
+			ans = input("Please answer the English word: ")
+			correct = ans.strip().lower() == word.english.lower()
+			word.exam_history.append(correct)
+			if correct:
+				print("✅ Correct!")
+			else:
+				print(f"❌ Wrong, answer :{word.english}")
+
+	def save_exam_results(self, path):
+		exam_result = []
+		for word in self.vocab.get_all():
+			exam_result.append({
+				"id": word.id,
+				"english": word.english,
+				"chinese": word.chinese,
+				"exam_history": word.exam_history
+			})
+		with open(path, 'w', encoding='utf-8') as f:
+			json.dump(exam_result, f, ensure_ascii=False, indent=2)
+		print("💾 Save exam result in :", path)

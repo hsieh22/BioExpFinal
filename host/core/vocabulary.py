@@ -12,6 +12,7 @@ class Word:
             'stress': 0.0
         }
         self.test_history = []
+        self.exam_history = []
 
     def __repr__(self): 
         # define a string representation for the Word object
