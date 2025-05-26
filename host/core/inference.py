@@ -9,27 +9,33 @@ LABELS = ["relax", "focus", "stress", "memory"]   # map to 0,1,2,3 order
 TRIAL_LEN = 5000                                 # samples (10 s @ 500 Hz)
 
 class InferenceEngine:
-    def __init__(self, model_path):
-        """Load the trained model weights to CPU."""
-        self.model = EEGNetWithFeatureFusionTransformer(feat_dim=14)
-        self.model.load_state_dict(torch.load(model_path, map_location="cpu"))
-        self.model.eval()          # inference mode
-        print(f"🤖 Model loaded from {model_path}")
-        # print("🤖 Model loaded")
+    def __init__(self, model_path: str):
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        # Load model
+        self.model = EEGNetWithFeatureFusionTransformer(feat_dim=14).to(self.device)
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.model.eval()
+
+        self.labels = ["rest", "concentration", "pressure", "memory"]
+        print(f"🤖 Model loaded from {model_path} ✔")
 
     def predict_from_json(self, eeg_json): # eeg_json is a vector with 5000 numbers for the model to predict
-        """Return state probabilities for a 5 000-sample vector."""
-        vec = (np.asarray(json.loads(eeg_json), dtype=np.float32)
-               if isinstance(eeg_json, str) else
-               np.asarray(eeg_json,        dtype=np.float32))
+        """"
+        eeg_json : list[float] | np.ndarray
+            Vector with ≥ 5 000 samples.
+
+        Returns : dict
+            {'rest': p0, 'concentration': p1, 'pressure': p2, 'memory': p3}
+        """
+        vec = np.asarray(eeg_json, dtype=np.float32)
 
         wf, feat = self._prepare_input(vec)
 
         with torch.no_grad():
-            logits = self.model(wf, feat)          # (1,4)
-            # probs  = F.softmax(logits, dim=1).numpy()[0] # V1
-            probs = F.softmax(logits, dim=1).detach().cpu().numpy()[0] # GPT
-            # probs = torch.softmax(logits, dim=1).cpu().numpy()[0]   # from maze model
+            logits = self.model(wf, feat)                     # (1,4)
+            probs  = F.softmax(logits, dim=1)                 # tensor (1,4)
+            probs  = probs.detach().cpu().numpy()[0]          # ← key line!
 
         return {lbl: float(p) for lbl, p in zip(LABELS, probs)}
         # # 模擬輸出機率
@@ -39,29 +45,25 @@ class InferenceEngine:
         #     'memory': float(np.random.rand()),
         #     'stress': float(np.random.rand())
         # }
-    def _prepare_input(self, eeg_vec: np.ndarray):
+    def _prepare_input(self, vec: np.ndarray):
         """
-        Returns waveform and feature tensors on CPU, always exactly TRIALLEN
-        samples long.  If eeg_vec is longer, it is trimmed; if shorter, raise
-        an error (caller can decide how to pad).
+        vec : 1-D numpy array with ≥ 5 000 samples.
+        Returns waveform & *z-scored* feature tensors on the same device.
         """
-        n = eeg_vec.shape[0]
+        if vec.ndim != 1:
+            raise ValueError("EEG input must be 1-D")
+        if vec.size < TRIAL_LEN:
+            raise ValueError(f"Need ≥{TRIAL_LEN} samples, got {vec.size}")
 
-        if n < TRIAL_LEN:
-            raise ValueError(f"EEG vector only {n} samples (<{TRIAL_LEN}); "
-                            "not enough for one window.")
+        vec = vec[-TRIAL_LEN:]                                    # keep last 5 000
+        wf  = torch.from_numpy(vec[np.newaxis, np.newaxis, :]).to(self.device)
 
-        if n > TRIAL_LEN:
-            if False:
-                eeg_vec = eeg_vec[-TRIAL_LEN:]      # keep last window
-            else:
-                eeg_vec = eeg_vec[:TRIAL_LEN]       # keep first window
+        feat_np = compute_features(vec).reshape(1, -1)
+        # --- z-score with stats of *this* window (dataset method) ---------
+        mu, sigma = feat_np.mean(0, keepdims=True), feat_np.std(0, keepdims=True) + 1e-6
+        feat_np   = (feat_np - mu) / sigma
+        feat      = torch.from_numpy(feat_np.astype(np.float32)).to(self.device)
 
-        # n == TRIALLEN or trimmed to that length
-        wf = torch.from_numpy(eeg_vec[np.newaxis, np.newaxis, :])  # (1,1,5000)
-
-        feat_np = compute_features(eeg_vec).reshape(1, -1).astype(np.float32)
-        feat    = torch.from_numpy(feat_np)                        # (1,14)
         return wf, feat
     
 
