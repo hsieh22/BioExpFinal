@@ -71,7 +71,8 @@ class Controller:
 
 			# Store the state probabilities in the word object
 			word.state_probs = probs
-			print(f"✅ Status probs: {probs}")
+			print("✅ EEG state probabilities:")
+			self.visualize_probs(probs)
         
 	def run_test_phase(self, round, test_count):
 		print("\n📝 Starting testing phase...")
@@ -191,4 +192,11 @@ class Controller:
 
 		with open(path, 'w', encoding='utf-8') as f:
 			json.dump(stats, f, ensure_ascii=False, indent=2)
+
+	def visualize_probs(probs, bar_length=20):
+		for state in ['relax', 'focus', 'memory', 'stress']:
+			prob = probs[state]
+			blocks = int(prob * bar_length)
+			bar = '█' * blocks + '-' * (bar_length - blocks)
+			print(f"{state:<7}: [{bar}] {prob:.2%}")
 
