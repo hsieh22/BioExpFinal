@@ -34,7 +34,7 @@ def process_vocab_file(input_file, output_file, mode='sort'):
     print(f"✅ 已完成：{mode}，共 {len(unique_lines)} 個不重複單字 → {output_file}")
 
 # 範例用法（自行修改路徑或模式）
-process_vocab_file("vocab.txt", "vocab_sort.txt", mode='sort')    # 字母排序
-process_vocab_file("vocab.txt", "vocab_sort_len.txt", mode='sort_len')  # 隨機打亂
-process_vocab_file("vocab.txt", "vocab_shuffled.txt", mode='shuffle')  # 隨機打亂
+process_vocab_file("vocab_all.txt", "vocab_sort.txt", mode='sort')    # 字母排序
+process_vocab_file("vocab_all.txt", "vocab_sort_len.txt", mode='sort_len')  # 隨機打亂
+process_vocab_file("vocab_all.txt", "vocab_shuffled.txt", mode='shuffle')  # 隨機打亂
 

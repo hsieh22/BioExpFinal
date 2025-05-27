@@ -43,18 +43,3 @@ class EEGClient:
                     break
                 data += packet
             return json.loads(data.decode())
-    
-    # def receive_data(self):
-    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    #         print("🔄 Waiting for EEG data...")
-    #         s.bind(('0.0.0.0', self.recv_port))
-    #         s.listen(1)
-    #         conn, addr = s.accept()
-    #         with conn:
-    #             data = b''
-    #             while True:
-    #                 packet = conn.recv(4096)
-    #                 if not packet:
-    #                     break
-    #                 data += packet
-    #             return json.loads(data.decode())

@@ -5,9 +5,10 @@ import numpy as np
 from core.eeg_client import EEGClient
 from core.inference import InferenceEngine
 from core.vocabulary import VocabularyManager
+from collections import Counter
 
 class Controller:
-	def __init__(self, vocab_file, model_path, biopac_ip, cmd_port, recv_port):
+	def __init__(self, vocab_file, model_path, biopac_ip, cmd_port, recv_port, eeg_based, round, vocab_per_round):
 		print("🧠 Controller is starting...")
 		# Init EEG client
 		self.client = EEGClient(biopac_ip, cmd_port, recv_port)
@@ -20,9 +21,22 @@ class Controller:
 
 		# Init inference engine
 		self.infer = InferenceEngine(model_path)
-	
-	def run_memory_phase(self, start_idx, count):
-		for i in range(start_idx, start_idx + count):
+
+		# Settings
+		self.eeg_based = eeg_based
+		if self.eeg_based:
+			print("🧠 EEG-based mode is enabled.")
+		else:
+			print("🧠 EEG-based mode is disabled.")
+
+		self.round = round
+		self.vocab_per_round = vocab_per_round
+		self.vocab_num = round * vocab_per_round
+
+	def run_memory_phase(self, round):
+		start_idx = round * self.vocab_per_round
+		end_idx = start_idx + self.vocab_per_round
+		for i in range(start_idx, end_idx):
 			if i >= self.vocab.size():
 				print("Exceeding vocabulary size, stopping the round.")
 				break
@@ -59,11 +73,14 @@ class Controller:
 			word.state_probs = probs
 			print(f"✅ Status probs: {probs}")
         
-	def run_test_phase(self, start_idx, count, test_count, eeg_based):
+	def run_test_phase(self, round, test_count):
 		print("\n📝 Starting testing phase...")
+		start_idx = round * self.vocab_per_round
+		end_idx = start_idx + self.vocab_per_round
+
 		# 依照 memory 機率由低到高挑選
-		candidates = self.vocab.get_all()[start_idx:start_idx + count]
-		if eeg_based:
+		candidates = self.vocab.get_all()[start_idx:end_idx]
+		if self.eeg_based:
 			# candidates = sorted(candidates, key=lambda w: w.state_probs['memory'] + w.state_probs['focus'], reverse=False)
 			candidates = sorted(candidates, key=lambda w: w.state_probs['relax'], reverse=True)
 		else:
@@ -83,31 +100,17 @@ class Controller:
 				time.sleep(5)  # Give some time before the next word
 			print("\n" * 50)
 
-	def show_all_vocab(self, vocab_num):
+	def show_all_vocab(self):
+
 		print("\n📝 Showing all vocabulary...")
-		test_vocab = self.vocab.get_all()[:vocab_num]
+		test_vocab = self.vocab.get_all()[:self.vocab_num]
 		for idx, word in enumerate(test_vocab):
 			print(f"{idx+1} : {word.english} ({word.chinese})")
 
-	def save_results(self, vocab_num, path):
-		result = []
-		test_vocab = self.vocab.get_all()[:vocab_num]
-		for word in test_vocab:
-			result.append({
-				"id": word.id,
-				"english": word.english,
-				"chinese": word.chinese,
-				"state_probs": word.state_probs,
-				"test_history": word.test_history
-			})
-		with open(path, 'w', encoding='utf-8') as f:
-			json.dump(result, f, ensure_ascii=False, indent=2)
-		print("💾 Save result in :", path)
-
-	def examine(self, vocab_num):
+	def examine(self):
 		correct_count = 0
 		print("\n📝 Starting final examination...")
-		test_vocab = self.vocab.get_all()[:vocab_num]
+		test_vocab = self.vocab.get_all()[:self.vocab_num]
 		random.shuffle(test_vocab)
 		for idx, word in enumerate(test_vocab):
 			print(f"\n👉 {idx+1} : {word.chinese}")
@@ -120,12 +123,27 @@ class Controller:
 			else:
 				print(f"❌ Wrong, answer :{word.english}")
 
-		score = correct_count / vocab_num * 100
+		score = correct_count / self.vocab_num * 100
 		print(f"\n🎉 Final exam completed! Your score: {score:.2f}%")
 
-	def save_exam_results(self, vocab_num, path):
+	def save_results(self, path):
+		result = []
+		test_vocab = self.vocab.get_all()[:self.vocab_num]
+		for word in test_vocab:
+			result.append({
+				"id": word.id,
+				"english": word.english,
+				"chinese": word.chinese,
+				"state_probs": word.state_probs,
+				"test_history": word.test_history
+			})
+		with open(path, 'w', encoding='utf-8') as f:
+			json.dump(result, f, ensure_ascii=False, indent=2)
+		print("💾 Save result in :", path)
+
+	def save_exam_results(self, path):
 		exam_result = []
-		test_vocab = self.vocab.get_all()[:vocab_num]
+		test_vocab = self.vocab.get_all()[:self.vocab_num]
 		for word in test_vocab:
 			exam_result.append({
 				"id": word.id,
@@ -136,3 +154,32 @@ class Controller:
 		with open(path, 'w', encoding='utf-8') as f:
 			json.dump(exam_result, f, ensure_ascii=False, indent=2)
 		print("💾 Save exam result in :", path)
+
+	def save_statistics(self, path):
+		test_vocab = self.vocab.get_all()[:self.vocab_num]
+		# calculate average probabilities
+		avg_probs = Counter()
+		for word in test_vocab:
+			avg_probs.update(word.state_probs)
+		for state in avg_probs:
+			avg_probs[state] /= self.vocab_num
+
+		# calculate average test and exam history
+		avg_test_history = {'correct': 0, 'wrong': 0}
+		avg_exam_history = {'correct': 0, 'wrong': 0}
+		for word in test_vocab:
+			for history, record in [('test_history', avg_test_history), ('exam_history', avg_exam_history)]:
+				hist = getattr(word, history)
+				record['correct'] += sum(hist)
+				record['wrong'] += len(hist) - sum(hist)
+
+		# save statistics
+		stats = {
+			'avg_probs': dict(avg_probs),
+			'avg_test_history': avg_test_history,
+			'avg_exam_history': avg_exam_history
+		}
+
+		with open(path, 'w', encoding='utf-8') as f:
+			json.dump(stats, f, ensure_ascii=False, indent=2)
+
