@@ -3,7 +3,6 @@ import socket
 import time
 
 #TODO : 視覺化狀態機率
-#TODO : 出題機率softmax
 
 # Get the local IP address
 hostname = socket.gethostname()

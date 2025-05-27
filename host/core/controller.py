@@ -78,11 +78,20 @@ class Controller:
 		start_idx = round * self.vocab_per_round
 		end_idx = start_idx + self.vocab_per_round
 
-		# 依照 memory 機率由低到高挑選
+		# pick test words
 		candidates = self.vocab.get_all()[start_idx:end_idx]
 		if self.eeg_based:
-			# candidates = sorted(candidates, key=lambda w: w.state_probs['memory'] + w.state_probs['focus'], reverse=False)
-			candidates = sorted(candidates, key=lambda w: w.state_probs['relax'], reverse=True)
+			# A.sort 
+			# candidates = sorted(candidates, key=lambda w: w.state_probs['relax'], reverse=True)
+
+			# B.randomly select 
+			alpha = 5
+			relax_scores = np.array([w.state_probs['relax'] for w in candidates])
+			exp_scores = np.exp(alpha * relax_scores)
+			probs = exp_scores / np.sum(exp_scores)
+			# random pick 3 words based on the probabilities
+			selected = np.random.choice(candidates, size=3, replace=False, p=probs)
+			candidates = list(selected)
 		else:
 			random.shuffle(candidates)
 		test_words = candidates[:test_count]
